@@ -1,84 +1,111 @@
 package com.hissain.speechrecognizer.utils;
 
 /**
- * Fast Fourier Transform.
+ * Fast Fourier Transform (FFT).
  *
- * last updated on June 15, 2002<br>
- * <b>description:</b> FFT class for real signals. Upon entry, N contains the
- * numbers of points in the DFT, real[] and imaginary[] contain the real and
- * imaginary parts of the input. Upon return, real[] and imaginary[] contain the
- * DFT output. All signals run from 0 to N - 1<br>
- * <b>input:</b> speech signal<br>
- * <b>output:</b> real and imaginary part of DFT output
+ * Optimized version of the in-place FFT algorithm.
+ * This implementation assumes the input length is a power of 2.
  *
- * @author Danny Su
- * @author Hanns Holger Rutz
+ * @author Md. Sazzad Hissain Khan
  */
 public class FFT {
     double[] real;
     double[] imag;
 
     /**
-     * Performs Fast Fourier Transformation in place.
+     * Performs Fast Fourier Transform in place on the given signal.
+     *
+     * @param signal the input signal (assumed to be a power of 2 in length)
      */
     public void process(double[] signal) {
         final int numPoints = signal.length;
-        // initialize real & imag array
+
+        // Initialize real and imag arrays
         real = signal;
         imag = new double[numPoints];
 
-        // perform FFT using the real & imag array
-        final double pi = Math.PI;
-        final int numStages = (int) (Math.log(numPoints) / Math.log(2));
+        // Bit-reversal sorting
+        bitReversal(numPoints);
+
+        // Perform FFT using decimation-in-time (DIT) radix-2 algorithm
+        computeFFT(numPoints);
+    }
+
+    /**
+     * Perform bit-reversal on the real and imaginary arrays.
+     *
+     * @param numPoints number of points (length of the arrays)
+     */
+    private void bitReversal(int numPoints) {
         final int halfNumPoints = numPoints >> 1;
         int j = halfNumPoints;
-        // FFT time domain decomposition carried out by "bit reversal sorting"
-        // algorithm
-        int k;
-        for (int i = 1; i < numPoints - 2; i++) {
+
+        for (int i = 1; i < numPoints - 1; i++) {
             if (i < j) {
-                // swap
-                double tempReal = real[j];
-                double tempImag = imag[j];
-                real[j] = real[i];
-                imag[j] = imag[i];
-                real[i] = tempReal;
-                imag[i] = tempImag;
+                // Swap real[i] with real[j] and imag[i] with imag[j]
+                swap(i, j);
             }
-            k = halfNumPoints;
+
+            int k = halfNumPoints;
             while (k <= j) {
                 j -= k;
                 k >>= 1;
             }
             j += k;
         }
+    }
 
-        // loop for each stage
+    /**
+     * Swap values in the real and imaginary arrays.
+     *
+     * @param i first index
+     * @param j second index
+     */
+    private void swap(int i, int j) {
+        double tempReal = real[j];
+        double tempImag = imag[j];
+        real[j] = real[i];
+        imag[j] = imag[i];
+        real[i] = tempReal;
+        imag[i] = tempImag;
+    }
+
+    /**
+     * Compute the FFT through a decimation-in-time radix-2 algorithm.
+     *
+     * @param numPoints number of points (length of the arrays)
+     */
+    private void computeFFT(int numPoints) {
+        final double pi = Math.PI;
+        final int numStages = (int) (Math.log(numPoints) / Math.log(2));
+
         for (int stage = 1; stage <= numStages; stage++) {
-            int LE = 1;
-            for (int i = 0; i < stage; i++) {
-                LE <<= 1;
-            }
+            int LE = 1 << stage;  // LE = 2^stage
             final int LE2 = LE >> 1;
-            double UR = 1;
-            double UI = 0;
-            // calculate sine & cosine values
-            final double SR =  Math.cos(pi / LE2);
-            final double SI = -Math.sin(pi / LE2);
-            // loop for each sub DFT
-            for (int subDFT = 1; subDFT <= LE2; subDFT++) {
-                // loop for each butterfly
-                for (int butterfly = subDFT - 1; butterfly <= numPoints - 1; butterfly += LE) {
+            final double theta = pi / LE2;
+            final double SR = Math.cos(theta);  // Cosine value
+            final double SI = -Math.sin(theta); // Sine value
+
+            // Loop for each sub-DFT
+            for (int subDFT = 0; subDFT < LE2; subDFT++) {
+                double UR = 1.0;
+                double UI = 0.0;
+
+                // Butterfly computation
+                for (int butterfly = subDFT; butterfly < numPoints; butterfly += LE) {
                     int ip = butterfly + LE2;
-                    // butterfly calculation
-                    double tempReal = (double) (real[ip] * UR - imag[ip] * UI);
-                    double tempImag = (double) (real[ip] * UI + imag[ip] * UR);
+
+                    // Butterfly calculation
+                    double tempReal = real[ip] * UR - imag[ip] * UI;
+                    double tempImag = real[ip] * UI + imag[ip] * UR;
+
                     real[ip] = real[butterfly] - tempReal;
                     imag[ip] = imag[butterfly] - tempImag;
                     real[butterfly] += tempReal;
                     imag[butterfly] += tempImag;
                 }
 
+                // Update trigonometric values
                 double tempUR = UR;
                 UR = tempUR * SR - UI * SI;
                 UI = tempUR * SI + UI * SR;
