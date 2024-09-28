@@ -7,16 +7,20 @@
     android:padding="16dp">
 
     <Button
-        android:id="@+id/button1"
+        android:id="@+id/button_fft"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Button 1"
-        android:layout_marginBottom="16dp"/>
+        android:layout_marginBottom="16dp"
+        android:padding="20dp"
+        android:background="#2196F3"
+        android:text="Compute FFT" />
 
     <Button
-        android:id="@+id/button2"
+        android:id="@+id/button_mfcc"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Button 2"/>
+        android:padding="20dp"
+        android:background="#2196F3"
+        android:text="Compute MFCC" />
 
 </LinearLayout>
